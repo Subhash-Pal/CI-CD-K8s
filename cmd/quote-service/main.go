@@ -20,7 +20,7 @@ func main() {
 	mux.HandleFunc("/quote", quoteHandler)
 
 	port := getenv("QUOTE_PORT", "8081")
-	log.Printf("quote-service listening on %s", port)
+	log.Printf("quote-service listening on: %s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatal(err)
 	}
