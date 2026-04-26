@@ -1,0 +1,101 @@
+name: ci-cd
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/go-cd-demo-api
+  IMAGE_QUOTE: ghcr.io/${{ github.repository_owner }}/go-cd-demo-quote-service
+  K8S_NAMESPACE: go-cd-demo
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./cmd/api ./cmd/quote-service
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: |
+            ${{ env.IMAGE_API }}:${{ github.sha }}
+            ${{ env.IMAGE_API }}:latest
+
+      - name: Build and push quote service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.quote-service
+          push: true
+          tags: |
+            ${{ env.IMAGE_QUOTE }}:${{ github.sha }}
+            ${{ env.IMAGE_QUOTE }}:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${KUBE_CONFIG_DATA}" | base64 -d > "$HOME/.kube/config"
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+
+      - name: Deploy manifests
+        run: kubectl apply -k k8s
+
+      - name: Update images
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/api api="${IMAGE_API}:${GITHUB_SHA}"
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/quote-service quote-service="${IMAGE_QUOTE}:${GITHUB_SHA}"
+
+      - name: Wait for rollout
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/api --timeout=180s
+          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/quote-service --timeout=180s

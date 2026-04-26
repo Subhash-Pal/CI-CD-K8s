@@ -1,0 +1,12 @@
+FROM golang:1.22-alpine AS builder
+WORKDIR /src
+COPY go.mod ./
+COPY cmd ./cmd
+RUN go build -o /out/quote-service ./cmd/quote-service
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /out/quote-service /quote-service
+EXPOSE 8081
+USER nonroot:nonroot
+ENTRYPOINT ["/quote-service"]

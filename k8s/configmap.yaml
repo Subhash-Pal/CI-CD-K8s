@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: go-cd-demo-config
+  namespace: go-cd-demo
+data:
+  API_PORT: "8080"
+  QUOTE_PORT: "8081"
+  QUOTE_SERVICE_URL: "http://quote-service:8081/quote"
