@@ -77,7 +77,7 @@ git config --global --add safe.directory "D:/training_golang/Module 9 (Hour 65-7
 Set your identity if needed:
 
 ```powershell
-git config user.name "Your Name"
+git config user.name "Subhash Pal"
 git config user.email "you@example.com"
 ```
 
