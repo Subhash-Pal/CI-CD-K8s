@@ -141,6 +141,8 @@ The workflow will:
 - wait for rollout completion
 - smoke test the API endpoint through a port-forward
 
+No `KUBE_CONFIG_DATA` secret is needed for this demo because the cluster is created inside the workflow itself.
+
 ## 8. Verify The Deployment
 
 After the workflow succeeds, open the failed or completed workflow run and confirm these steps are green:
@@ -165,6 +167,8 @@ Open the API service through NodePort `30007` if you are using your own local cl
 ```text
 http://localhost:30007/
 ```
+
+If you want to use your own remote Kubernetes cluster instead of `kind`, then you would create a `KUBE_CONFIG_DATA` secret and change the workflow to use that cluster. This repository does not need it for the default demo path.
 
 ## 9. What To Change For Your Own Demo
 
