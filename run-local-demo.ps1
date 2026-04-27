@@ -20,7 +20,6 @@ function Assert-Command {
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $repoRoot
 
-Assert-Command git
 Assert-Command go
 Assert-Command docker
 Assert-Command kubectl
@@ -33,6 +32,7 @@ try {
 }
 
 $clusterName = 'go-cd-demo'
+$clusterContext = "kind-$clusterName"
 $namespace = 'go-cd-demo'
 $apiImage = 'ci-cd-k8s-api:test'
 $quoteImage = 'ci-cd-k8s-quote:test'
@@ -43,10 +43,12 @@ try {
   $env:GOCACHE = Join-Path $repoRoot '.gocache'
   go test ./...
 
+  # Build the two container images used by the demo.
   Write-Step 'Building Docker images'
   docker build -f Dockerfile.api -t $apiImage .
   docker build -f Dockerfile.quote-service -t $quoteImage .
 
+  # Create a local Kubernetes cluster if one does not already exist.
   Write-Step 'Creating kind cluster'
   $existingCluster = kind get clusters | Where-Object { $_ -eq $clusterName }
   if (-not $existingCluster) {
@@ -55,12 +57,14 @@ try {
     Write-Host "Cluster '$clusterName' already exists, reusing it."
   }
 
-  kubectl config use-context "kind-$clusterName" | Out-Null
+  kubectl config use-context $clusterContext | Out-Null
 
+  # Load the freshly built images into kind so Kubernetes can run them locally.
   Write-Step 'Loading Docker images into kind'
   kind load docker-image $apiImage --name $clusterName
   kind load docker-image $quoteImage --name $clusterName
 
+  # Apply the Kubernetes manifests and then point the deployments at the local images.
   Write-Step 'Deploying Kubernetes manifests'
   kubectl apply -k k8s --validate=false
 
