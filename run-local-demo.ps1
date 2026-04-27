@@ -64,6 +64,10 @@ try {
   Write-Step 'Deploying Kubernetes manifests'
   kubectl apply -k k8s --validate=false
 
+  Write-Step 'Updating deployment images'
+  kubectl -n $namespace set image deployment/api api=$apiImage
+  kubectl -n $namespace set image deployment/quote-service quote-service=$quoteImage
+
   Write-Step 'Waiting for rollouts'
   kubectl -n $namespace rollout status deployment/api --timeout=180s
   kubectl -n $namespace rollout status deployment/quote-service --timeout=180s

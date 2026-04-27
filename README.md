@@ -121,6 +121,8 @@ If you want the script to delete the kind cluster at the end:
 
 Keep Docker Desktop running while the script is executing. If Docker stops or sleeps, `kind` and `kubectl` will fail because the cluster runs inside Docker.
 
+The script also updates the Kubernetes deployments to use the locally built images before it waits for rollout, which avoids Docker Hub pull errors.
+
 If the script fails because the cluster is in a bad state, clean it up and run it again:
 
 ```powershell
