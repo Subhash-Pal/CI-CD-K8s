@@ -95,7 +95,7 @@ Validate Kubernetes manifests:
 kubectl apply --dry-run=client -k k8s
 ```
 
-Run the stack on a cluster:
+Run the stack on a local cluster:
 
 ```powershell
 kubectl apply -k k8s
@@ -110,26 +110,16 @@ The workflow will:
 
 - run `go test ./...`
 - build both Docker images
-- push images to GHCR
+- create a temporary `kind` cluster in GitHub Actions
+- load the images into the cluster
 - deploy the Kubernetes manifests with `kubectl apply -k k8s`
 - update the running images
 - wait for rollout completion
+- smoke test the API endpoint through a port-forward
 
-## 8. GitHub Secrets Needed
+## 8. Verify The Deployment
 
-Add this secret in the repository settings:
-
-- `KUBE_CONFIG_DATA` = base64 encoded kubeconfig for the target cluster
-
-Example encoding command:
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.kube\config"))
-```
-
-## 9. Verify The Deployment
-
-After the workflow succeeds, check the cluster:
+After the workflow succeeds, check the cluster logs and rollout in the Actions tab, then you can test locally with:
 
 ```powershell
 kubectl config current-context
@@ -138,7 +128,7 @@ kubectl -n go-cd-demo get pods
 kubectl -n go-cd-demo get svc
 ```
 
-Open the API service through NodePort `30007`:
+Open the API service through NodePort `30007` if you are using your own local cluster:
 
 ```text
 http://localhost:30007/

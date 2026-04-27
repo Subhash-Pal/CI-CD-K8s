@@ -7,8 +7,10 @@ on:
   pull_request:
 
 env:
-  REGISTRY: ghcr.io
   K8S_NAMESPACE: go-cd-demo
+  KIND_CLUSTER_NAME: go-cd-demo
+  API_IMAGE: ci-cd-k8s-api
+  QUOTE_IMAGE: ci-cd-k8s-quote
 
 jobs:
   test:
@@ -21,7 +23,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          cache: true
+          cache: false
 
       - name: Test
         run: go test ./...
@@ -29,90 +31,48 @@ jobs:
       - name: Build
         run: go build ./cmd/api ./cmd/quote-service
 
-  build-and-push:
+  deploy-kind:
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push'
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Normalize image owner
-        run: |
-          echo "IMAGE_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-          echo "IMAGE_API=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/go-cd-demo-api" >> "$GITHUB_ENV"
-          echo "IMAGE_QUOTE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/go-cd-demo-quote-service" >> "$GITHUB_ENV"
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push API
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.api
-          push: true
-          tags: |
-            ${{ env.IMAGE_API }}:${{ github.sha }}
-            ${{ env.IMAGE_API }}:latest
-
-      - name: Build and push quote service
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.quote-service
-          push: true
-          tags: |
-            ${{ env.IMAGE_QUOTE }}:${{ github.sha }}
-            ${{ env.IMAGE_QUOTE }}:latest
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.ref == 'refs/heads/main'
-    env:
-      KUBECONFIG: ${{ github.workspace }}/.kube/config
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Normalize image owner
-        run: |
-          echo "IMAGE_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-          echo "IMAGE_API=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/go-cd-demo-api" >> "$GITHUB_ENV"
-          echo "IMAGE_QUOTE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/go-cd-demo-quote-service" >> "$GITHUB_ENV"
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
-      - name: Configure kubeconfig
+      - name: Set up kind
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: ${{ env.KIND_CLUSTER_NAME }}
+
+      - name: Build API image
+        run: docker build -f Dockerfile.api -t "${API_IMAGE}:${GITHUB_SHA}" .
+
+      - name: Build quote service image
+        run: docker build -f Dockerfile.quote-service -t "${QUOTE_IMAGE}:${GITHUB_SHA}" .
+
+      - name: Load images into kind
         run: |
-          mkdir -p "${GITHUB_WORKSPACE}/.kube"
-          if [ -z "${KUBE_CONFIG_DATA}" ]; then
-            echo "KUBE_CONFIG_DATA secret is missing"
-            exit 1
-          fi
-          echo "${KUBE_CONFIG_DATA}" | base64 -d > "${GITHUB_WORKSPACE}/.kube/config"
-          kubectl config view --minify
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+          kind load docker-image "${API_IMAGE}:${GITHUB_SHA}" --name "${KIND_CLUSTER_NAME}"
+          kind load docker-image "${QUOTE_IMAGE}:${GITHUB_SHA}" --name "${KIND_CLUSTER_NAME}"
 
       - name: Deploy manifests
         run: kubectl apply -k k8s --validate=false
 
       - name: Update images
         run: |
-          kubectl -n "${K8S_NAMESPACE}" set image deployment/api api="${IMAGE_API}:${GITHUB_SHA}"
-          kubectl -n "${K8S_NAMESPACE}" set image deployment/quote-service quote-service="${IMAGE_QUOTE}:${GITHUB_SHA}"
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/api api="${API_IMAGE}:${GITHUB_SHA}"
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/quote-service quote-service="${QUOTE_IMAGE}:${GITHUB_SHA}"
 
       - name: Wait for rollout
         run: |
           kubectl -n "${K8S_NAMESPACE}" rollout status deployment/api --timeout=180s
           kubectl -n "${K8S_NAMESPACE}" rollout status deployment/quote-service --timeout=180s
+
+      - name: Smoke test API
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" port-forward service/api 18080:80 >/tmp/port-forward.log 2>&1 &
+          sleep 5
+          curl -fsS http://127.0.0.1:18080/api
