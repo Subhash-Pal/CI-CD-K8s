@@ -121,6 +121,28 @@ If you want the script to delete the kind cluster at the end:
 
 Keep Docker Desktop running while the script is executing. If Docker stops or sleeps, `kind` and `kubectl` will fail because the cluster runs inside Docker.
 
+If the script fails because the cluster is in a bad state, clean it up and run it again:
+
+```powershell
+.\run-local-demo.ps1 -Cleanup
+.\run-local-demo.ps1
+```
+
+If you want to run the steps manually instead of using the script:
+
+```powershell
+go test ./...
+docker build -f Dockerfile.api -t ci-cd-k8s-api:test .
+docker build -f Dockerfile.quote-service -t ci-cd-k8s-quote:test .
+kind create cluster --name go-cd-demo
+kind load docker-image ci-cd-k8s-api:test --name go-cd-demo
+kind load docker-image ci-cd-k8s-quote:test --name go-cd-demo
+kubectl apply -k k8s
+kubectl -n go-cd-demo get all
+kubectl -n go-cd-demo port-forward service/api 18080:80
+curl http://127.0.0.1:18080/api
+```
+
 Run the app tests:
 
 ```powershell
