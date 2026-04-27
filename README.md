@@ -10,7 +10,7 @@ This repository contains a complete CI/CD demo with Kubernetes deployment:
 
 ## 1. Create The Repository
 
-Create a GitHub repository named `CI-CD-K8s` under your account `Subhash-Pal`.
+Create a GitHub repository named `CI-CD-K8s` under your GitHub account `Subhash-Pal`.
 
 If you are using the terminal:
 
@@ -19,7 +19,11 @@ gh auth login
 gh repo create Subhash-Pal/CI-CD-K8s --private --confirm
 ```
 
-If the repository already exists, skip creation and use the existing remote.
+If the repository already exists, skip creation and use the existing remote URL:
+
+```powershell
+git remote set-url origin https://github.com/Subhash-Pal/CI-CD-K8s.git
+```
 
 ## 2. Clone Or Prepare The Project
 
@@ -73,7 +77,9 @@ git commit -m "Initial CI/CD K8s demo"
 git push -u origin main
 ```
 
-## 6. Local Validation
+## 6. Test Locally
+
+Before you check GitHub Actions, run the project locally to confirm the app and manifests work:
 
 Run the app tests:
 
@@ -102,9 +108,27 @@ kubectl apply -k k8s
 kubectl -n go-cd-demo get all
 ```
 
+Smoke test the API on your local cluster:
+
+```powershell
+kubectl -n go-cd-demo port-forward service/api 18080:80
+```
+
+Then open a second terminal and run:
+
+```powershell
+curl http://127.0.0.1:18080/api
+```
+
 ## 7. Check CI/CD In GitHub
 
 Push to `main` and open the **Actions** tab in GitHub.
+
+The workflow has 3 stages:
+
+1. `test` runs `go test ./...` and `go build`
+2. `deploy-kind` creates a temporary `kind` cluster in GitHub Actions
+3. The workflow builds Docker images, loads them into `kind`, deploys the manifests, waits for rollout, and smoke-tests the API
 
 The workflow will:
 
@@ -119,7 +143,15 @@ The workflow will:
 
 ## 8. Verify The Deployment
 
-After the workflow succeeds, check the cluster logs and rollout in the Actions tab, then you can test locally with:
+After the workflow succeeds, open the failed or completed workflow run and confirm these steps are green:
+
+- `Test`
+- `Build and push` or `deploy-kind` depending on the run type
+- `Deploy manifests`
+- `Wait for rollout`
+- `Smoke test API`
+
+If you are testing locally, verify the cluster with:
 
 ```powershell
 kubectl config current-context
@@ -133,3 +165,11 @@ Open the API service through NodePort `30007` if you are using your own local cl
 ```text
 http://localhost:30007/
 ```
+
+## 9. What To Change For Your Own Demo
+
+If you want to rename the repo or use another GitHub account:
+
+- update the GitHub repo name in the clone and remote URLs
+- update the owner name in the `gh repo create` command
+- keep the workflow the same if you want the same CI/CD demo behavior
