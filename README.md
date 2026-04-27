@@ -105,6 +105,22 @@ git push -u origin main
 
 Run these checks before you push or re-run Actions.
 
+### One-command local demo
+
+Run the full local demo from PowerShell:
+
+```powershell
+.\run-local-demo.ps1
+```
+
+If you want the script to delete the kind cluster at the end:
+
+```powershell
+.\run-local-demo.ps1 -Cleanup
+```
+
+Keep Docker Desktop running while the script is executing. If Docker stops or sleeps, `kind` and `kubectl` will fail because the cluster runs inside Docker.
+
 Run the app tests:
 
 ```powershell
@@ -143,6 +159,8 @@ Open a second terminal and run:
 ```powershell
 curl http://127.0.0.1:18080/api
 ```
+
+The script already runs the same smoke test for you and prints the API response.
 
 ## How CI/CD Works
 
