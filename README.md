@@ -1,16 +1,38 @@
 # CI-CD-K8s
 
-This repository contains a complete CI/CD demo with Kubernetes deployment:
+This repository is a complete CI/CD + Kubernetes demo that anyone can recreate from scratch.
 
 - `api` service on port `8080`
-- `quote-service` on port `8081`
+- `quote-service` service on port `8081`
 - Docker images for both services
 - Kubernetes manifests under `k8s/`
 - GitHub Actions workflow in `.github/workflows/ci-cd.yaml`
 
-## 1. Create The Repository
+## What You Need
 
-Create a GitHub repository named `CI-CD-K8s` under your GitHub account `Subhash-Pal`.
+Install these tools first:
+
+- `Git`
+- `Go 1.22+`
+- `Docker Desktop`
+- `kubectl`
+- `kind`
+- `gh` for GitHub repo creation from terminal
+
+## Project Layout
+
+- `cmd/api` - API service that calls the quote service
+- `cmd/quote-service` - simple quote service
+- `Dockerfile.api` - container build for the API
+- `Dockerfile.quote-service` - container build for the quote service
+- `k8s/` - Kubernetes manifests and namespace/config map
+- `.github/workflows/ci-cd.yaml` - GitHub Actions CI/CD pipeline
+
+## Recreate The Repo
+
+### 1. Create The GitHub Repository
+
+Create a GitHub repository named `CI-CD-K8s` under your account.
 
 If you are using the terminal:
 
@@ -19,13 +41,15 @@ gh auth login
 gh repo create Subhash-Pal/CI-CD-K8s --private --confirm
 ```
 
-If the repository already exists, skip creation and use the existing remote URL:
+If you are using the GitHub website, create a new private repository named `CI-CD-K8s` and do not add a README or `.gitignore`.
+
+If the repository already exists, use the existing remote URL:
 
 ```powershell
 git remote set-url origin https://github.com/Subhash-Pal/CI-CD-K8s.git
 ```
 
-## 2. Clone Or Prepare The Project
+### 2. Clone Or Prepare The Project
 
 If you already have the local folder, open it:
 
@@ -40,7 +64,7 @@ git clone https://github.com/Subhash-Pal/CI-CD-K8s.git
 Set-Location CI-CD-K8s
 ```
 
-## 3. Initialize Git
+### 3. Initialize Git
 
 If the folder is not yet a git repo:
 
@@ -57,7 +81,7 @@ git config user.name "Your Name"
 git config user.email "you@example.com"
 ```
 
-## 4. Add The Remote
+### 4. Add The Remote
 
 ```powershell
 git remote add origin https://github.com/Subhash-Pal/CI-CD-K8s.git
@@ -69,7 +93,7 @@ If `origin` already exists:
 git remote set-url origin https://github.com/Subhash-Pal/CI-CD-K8s.git
 ```
 
-## 5. Commit And Push
+### 5. Commit And Push
 
 ```powershell
 git add .
@@ -77,9 +101,9 @@ git commit -m "Initial CI/CD K8s demo"
 git push -u origin main
 ```
 
-## 6. Test Locally
+## Test Locally
 
-Before you check GitHub Actions, run the project locally to confirm the app and manifests work:
+Run these checks before you push or re-run Actions.
 
 Run the app tests:
 
@@ -114,21 +138,20 @@ Smoke test the API on your local cluster:
 kubectl -n go-cd-demo port-forward service/api 18080:80
 ```
 
-Then open a second terminal and run:
+Open a second terminal and run:
 
 ```powershell
 curl http://127.0.0.1:18080/api
 ```
 
-## 7. Check CI/CD In GitHub
+## How CI/CD Works
 
 Push to `main` and open the **Actions** tab in GitHub.
 
-The workflow has 3 stages:
+The workflow has 2 main jobs:
 
 1. `test` runs `go test ./...` and `go build`
-2. `deploy-kind` creates a temporary `kind` cluster in GitHub Actions
-3. The workflow builds Docker images, loads them into `kind`, deploys the manifests, waits for rollout, and smoke-tests the API
+2. `deploy-kind` creates a temporary `kind` cluster in GitHub Actions, builds Docker images, loads them into `kind`, deploys the manifests, waits for rollout, and smoke-tests the API
 
 The workflow will:
 
@@ -143,12 +166,12 @@ The workflow will:
 
 No `KUBE_CONFIG_DATA` secret is needed for this demo because the cluster is created inside the workflow itself.
 
-## 8. Verify The Deployment
+## Verify The Deployment
 
-After the workflow succeeds, open the failed or completed workflow run and confirm these steps are green:
+After the workflow succeeds, open the workflow run and confirm these steps are green:
 
 - `Test`
-- `Build and push` or `deploy-kind` depending on the run type
+- `deploy-kind`
 - `Deploy manifests`
 - `Wait for rollout`
 - `Smoke test API`
@@ -170,7 +193,7 @@ http://localhost:30007/
 
 If you want to use your own remote Kubernetes cluster instead of `kind`, then you would create a `KUBE_CONFIG_DATA` secret and change the workflow to use that cluster. This repository does not need it for the default demo path.
 
-## 9. What To Change For Your Own Demo
+## What To Change For Your Own Demo
 
 If you want to rename the repo or use another GitHub account:
 
