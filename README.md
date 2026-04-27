@@ -130,6 +130,8 @@ If the script fails because the cluster is in a bad state, clean it up and run i
 .\run-local-demo.ps1
 ```
 
+## Manual Steps
+
 If you want to run the steps manually instead of using the script:
 
 ```powershell
@@ -144,47 +146,6 @@ kubectl -n go-cd-demo get all
 kubectl -n go-cd-demo port-forward service/api 18080:80
 curl http://127.0.0.1:18080/api
 ```
-
-Run the app tests:
-
-```powershell
-$env:GOCACHE = Join-Path $PWD ".gocache"
-go test ./...
-```
-
-Build both Docker images:
-
-```powershell
-docker build -f Dockerfile.api -t ci-cd-k8s-api:test .
-docker build -f Dockerfile.quote-service -t ci-cd-k8s-quote:test .
-```
-
-Validate Kubernetes manifests:
-
-```powershell
-kubectl apply --dry-run=client -k k8s
-```
-
-Run the stack on a local cluster:
-
-```powershell
-kubectl apply -k k8s
-kubectl -n go-cd-demo get all
-```
-
-Smoke test the API on your local cluster:
-
-```powershell
-kubectl -n go-cd-demo port-forward service/api 18080:80
-```
-
-Open a second terminal and run:
-
-```powershell
-curl http://127.0.0.1:18080/api
-```
-
-The script already runs the same smoke test for you and prints the API response.
 
 ## How CI/CD Works
 
